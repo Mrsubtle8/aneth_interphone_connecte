@@ -279,6 +279,17 @@ small{{color:#666}}
 <label>URL externe (optionnel, sinon IP locale)</label>
 <input name="open_url_base" value="{open_url_base}" placeholder="http://moncompte.duckdns.org:8080">
 
+<h3>Telegram (acces distant)</h3>
+<label>Ouverture distante par bot Telegram</label>
+<select name="telegram_enabled">
+<option value="true" {tg_true}>oui</option>
+<option value="false" {tg_false}>non</option>
+</select>
+<label>Token du bot (BotFather)</label>
+<input name="telegram_bot_token" type="password" placeholder="(inchange)">
+<label>Chat ID autorise</label>
+<input name="telegram_chat_id" value="{telegram_chat_id}">
+
 <h3>Mise a jour (OTA)</h3>
 <label>Depot GitHub</label>
 <input name="ota_repo" value="{ota_repo}">
@@ -317,6 +328,9 @@ small{{color:#666}}
         open_url_base=html_escape(cfg["open_url_base"]),
         nou_true="selected" if cfg["notify_open_url"] else "",
         nou_false="selected" if not cfg["notify_open_url"] else "",
+        telegram_chat_id=html_escape(cfg["telegram_chat_id"]),
+        tg_true="selected" if cfg["telegram_enabled"] else "",
+        tg_false="selected" if not cfg["telegram_enabled"] else "",
         wifi_name=html_escape(cfg["wifi_name"]),
         message=html_escape(cfg["message"]),
         sound_options=sound_options(cfg["pushover_sound"]),
@@ -416,6 +430,8 @@ def step(sock, ip):
                 cfg["relay_active_low"] = form.get("relay_active_low", "false") == "true"
                 cfg["notify_open_url"] = form.get("notify_open_url", "true") == "true"
                 cfg["open_url_base"] = form.get("open_url_base", cfg["open_url_base"])
+                cfg["telegram_enabled"] = form.get("telegram_enabled", "false") == "true"
+                cfg["telegram_chat_id"] = form.get("telegram_chat_id", cfg["telegram_chat_id"])
                 cfg["ota_repo"] = form.get("ota_repo", cfg["ota_repo"])
                 cfg["ota_branch"] = form.get("ota_branch", cfg["ota_branch"])
                 cfg["ota_path"] = form.get("ota_path", cfg["ota_path"])
@@ -428,6 +444,8 @@ def step(sock, ip):
                     cfg["pushover_user_key"] = form["pushover_user_key"]
                 if form.get("pushover_api_token"):
                     cfg["pushover_api_token"] = form["pushover_api_token"]
+                if form.get("telegram_bot_token"):
+                    cfg["telegram_bot_token"] = form["telegram_bot_token"]
                 if form.get("web_password"):
                     cfg["web_password"] = form["web_password"]
 

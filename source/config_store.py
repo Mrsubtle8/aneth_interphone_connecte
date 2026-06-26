@@ -42,6 +42,10 @@ DEFAULTS = {
     # local). Renseigner une URL externe pour ouvrir hors du reseau (port
     # forwarding / DDNS / VPN), ex http://moncompte.duckdns.org:8080
     "open_url_base": "",
+    # Telegram (acces distant securise : ouverture via bot)
+    "telegram_enabled": False,
+    "telegram_bot_token": "",
+    "telegram_chat_id": "",
     # OTA (mise a jour via GitHub)
     "ota_repo": "Mrsubtle8/aneth_interphone_connecte",
     "ota_branch": "main",

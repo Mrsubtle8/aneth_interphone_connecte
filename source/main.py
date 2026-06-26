@@ -6,6 +6,7 @@ import pushover
 import relay
 import interphone
 import web
+import telegram
 
 led = Pin("LED", Pin.OUT)
 
@@ -29,9 +30,12 @@ while True:
 
     web.step(sock, ip)
 
+    telegram.poll()
+
     if interphone.check():
         print(">>> SONNERIE DETECTEE <<<")
         pushover.send(ip=ip)
+        telegram.notify("Quelqu'un sonne a la porte")
 
     led.value(1 if interphone.is_active() else 0)
 
