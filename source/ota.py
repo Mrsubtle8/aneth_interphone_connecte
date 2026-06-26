@@ -38,6 +38,8 @@ LOCAL_STATE = "version.json"
 CHUNK = 512
 # Suffixe des fichiers telecharges avant le swap final.
 TMP_SUFFIX = ".new"
+# Timeout reseau (s) : empeche un blocage infini si une connexion TLS se fige.
+NET_TIMEOUT = 12
 
 
 # --------------------------------------------------------------------------
@@ -80,6 +82,8 @@ def _open_url(url):
 
     addr = socket.getaddrinfo(host, port)[0][-1]
     s = socket.socket()
+    # Timeout obligatoire : sans lui, un TLS qui se fige bloque a l'infini.
+    s.settimeout(NET_TIMEOUT)
     s.connect(addr)
     if proto == "https":
         s = ssl.wrap_socket(s, server_hostname=host)
@@ -187,6 +191,7 @@ def _follow_location(url):
     port = 443 if proto == "https" else 80
     addr = socket.getaddrinfo(host, port)[0][-1]
     s = socket.socket()
+    s.settimeout(NET_TIMEOUT)
     s.connect(addr)
     if proto == "https":
         s = ssl.wrap_socket(s, server_hostname=host)
