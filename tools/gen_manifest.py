@@ -42,6 +42,14 @@ def main():
 
     out = args.out or os.path.join(args.dir, "manifest.json")
 
+    # Grave la version dans le code (affichage de la version installee).
+    with open(os.path.join(args.dir, "fwversion.py"), "w") as f:
+        f.write("# Version du firmware. Genere automatiquement par "
+                "tools/gen_manifest.py.\n")
+        f.write("# Sert a afficher la version reellement installee "
+                "(independamment de l'OTA).\n")
+        f.write('VERSION = "%s"\n' % args.version)
+
     if args.files:
         candidates = args.files
     else:
