@@ -1,15 +1,16 @@
 {
-  "version": "1.5.0",
+  "version": "1.6.0",
   "files": {
     "config_store.py": "89534230b38acdb5d5b4b3b4fd26e9f3839491991b4adf67c99cac33a1dd7cdd",
-    "fwversion.py": "f646a20ec9c5c90987aa5a7d337252362b54461dd547b56b085cc4600c397c27",
+    "fwversion.py": "9288b42207451a1e8a7f7bc1dbf35cc066b098a9140c6ee05a32900593bc561e",
+    "history.py": "e919b09c3f1faa87bb65429648bae840472fe40af304f54039d83f922a5bb639",
     "interphone.py": "b741454e94736f4aa0c479d3433ca31915c04837985dd4db33cc8e97ff2bda1d",
-    "main.py": "f4ffa2d80d4e611ea340c69aff4cf2d22486534dacaf763a0209f275ccecf89d",
+    "main.py": "e40e3e54f25bccbf066837fee46eccbbb314e94f136ac93ce96d24f37061e050",
     "ota.py": "a3330334a44dc9ec90d9a0423933e77e1c33fbda183225b30a840c23d0992a8a",
-    "pushover.py": "db4faeff73c69ac1c7c9c5b85ea99da9a8d818b4c7f7016a0255c62499205a03",
+    "pushover.py": "3d7072cc342582161362b1bb9c1a35f3d10678dc731d12939f5369dd3e9e327e",
     "relay.py": "49aae8109da6d47e7a6deaf1487588b7b0528b7e7a7b34e980cc6b83974aef6a",
-    "telegram.py": "c538973bcda8da2e8c5794c1b26cb325d8289dab65f4059c6c8e8a871f35204e",
-    "web.py": "6cfa316cbef9c40358dda331a529951697aeb75e84895886889faf1bdb90bb07",
-    "wifi_manager.py": "a5f9136da474a8724300370bf14e9696cc86dc46cfe433ba13a4576936c4b178"
+    "telegram.py": "43f1afc70f0fefffd07fe56cc5e84f59d31591d54bc97230dc86ab8a3d7c4366",
+    "web.py": "7a7d2150ffa6988879bfe3fd0369add0088a658a6400084b44ddf3a59db54c52",
+    "wifi_manager.py": "998e214389fac0d55ac46214956baf6f02b6319e4d4386f31e7571d1dabb0c74"
   }
 }

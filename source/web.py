@@ -6,6 +6,7 @@ import pushover
 import relay
 import interphone
 import ota
+import history
 
 SOUNDS = ["pushover","cosmic","bike","incoming","magic","siren","spacealarm","persistent","echo","updown","none"]
 
@@ -223,6 +224,11 @@ small{{color:#666}}
 </div>
 
 <div class="card">
+<h2>Historique</h2>
+<pre style="white-space:pre-wrap;font-size:13px;color:#333;margin:0">{history}</pre>
+</div>
+
+<div class="card">
 <h2>Configuration</h2>
 <form id="cfg" onsubmit="return doSave(event)">
 
@@ -323,6 +329,7 @@ small{{color:#666}}
         state=state,
         ip=ip,
         fw_version=html_escape(fw_version),
+        history=html_escape(history.text(15)),
         ota_repo=html_escape(cfg["ota_repo"]),
         ota_branch=html_escape(cfg["ota_branch"]),
         ota_path=html_escape(cfg["ota_path"]),
@@ -386,6 +393,7 @@ def step(sock, ip):
 
         elif method == "GET" and path.startswith("/open?password=" + pwd):
             relay.pulse()
+            history.add("ouverture", "web")
             send_response(conn, "Porte ouverte")
 
         elif method == "GET" and path.startswith("/update?password=" + pwd):

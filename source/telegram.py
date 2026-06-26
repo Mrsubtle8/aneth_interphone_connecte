@@ -14,6 +14,7 @@ from time import ticks_ms, ticks_diff
 
 import config_store
 import relay
+import history
 
 API = "https://api.telegram.org/bot"
 
@@ -75,7 +76,7 @@ def notify(text):
         "&text=" + _q(text) +
         "&reply_markup=" + _q(_OPEN_KEYBOARD)
     )
-    _request(cfg["telegram_bot_token"], "sendMessage", params)
+    return _request(cfg["telegram_bot_token"], "sendMessage", params) is not None
 
 
 def _send_text(cfg, text):
@@ -86,6 +87,7 @@ def _send_text(cfg, text):
 def _open_door(cfg, source):
     print("Telegram: ouverture porte (" + source + ")")
     relay.pulse()
+    history.add("ouverture", "Telegram " + source)
     _send_text(cfg, "🔓 Porte ouverte")
 
 
@@ -100,13 +102,14 @@ def _norm(text):
 
 # Clavier persistant (boutons en bas du chat) : plus besoin de retenir les noms.
 _MENU_KEYBOARD = ('{"keyboard":[["🔓 Ouvrir"],'
-                  '["📊 Etat","🔔 Test"],'
-                  '["⬆️ Mise a jour","♻️ Redemarrer"]],'
+                  '["📜 Historique","📊 Etat"],'
+                  '["🔔 Test","⬆️ Mise a jour","♻️ Redemarrer"]],'
                   '"resize_keyboard":true,"is_persistent":true}')
 
 # Menu natif "/" de Telegram (autocompletion quand on tape "/").
 _COMMANDS_JSON = ('{"commands":['
                   '{"command":"ouvrir","description":"Ouvrir la porte"},'
+                  '{"command":"historique","description":"Dernieres sonneries / ouvertures"},'
                   '{"command":"etat","description":"Etat (version, IP, sonnerie)"},'
                   '{"command":"test","description":"Notification de test"},'
                   '{"command":"maj","description":"Mise a jour du firmware"},'
@@ -121,6 +124,7 @@ def _menu(cfg):
     global _cmds_registered
     txt = ("Interphone Pickles\n\n"
            "🔓 Ouvrir - ouvrir la porte\n"
+           "📜 Historique - dernieres sonneries/ouvertures\n"
            "📊 Etat - version, IP, sonnerie\n"
            "🔔 Test - notification de test\n"
            "⬆️ Mise a jour - firmware (OTA)\n"
@@ -186,6 +190,8 @@ def _handle_text(cfg, text):
     t = _norm(text)
     if "ouvr" in t or "open" in t:
         _open_door(cfg, "commande")
+    elif "histor" in t:
+        _send_text(cfg, "📜 Historique\n\n" + history.text(15))
     elif "etat" in t or "status" in t:
         _status(cfg)
     elif "test" in t:
