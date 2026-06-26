@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "files": {
+    "config_store.py": "3de90df30cd2f7a27ef5962774424038587adee68a538c15fe61a9380d89988b",
+    "interphone.py": "b741454e94736f4aa0c479d3433ca31915c04837985dd4db33cc8e97ff2bda1d",
+    "main.py": "ddabe2e961260a71a5caf89cd150cb9b2a8d2a24d338b8c0771fb1ed8b64cf30",
+    "ota.py": "de9bc7c9da5944526235f25bf56e2c4f154cdb23b4a8a0dc1abe256fe292dff3",
+    "pushover.py": "6e2d30e8f212d218224ea8cc8939036ca7d2c79dabb6c598a04dd0933304895d",
+    "relay.py": "49aae8109da6d47e7a6deaf1487588b7b0528b7e7a7b34e980cc6b83974aef6a",
+    "web.py": "2cfe1b4388141429a233ac293112f9d6adb6a95ad30ce899d838bf17227b39fa",
+    "wifi_manager.py": "a5f9136da474a8724300370bf14e9696cc86dc46cfe433ba13a4576936c4b178"
+  }
+}

@@ -1,80 +1,80 @@
-# OTA via GitHub — Interphone Pickles
+# Interphone Pickles — Firmware & mises à jour OTA
 
-Mise à jour du firmware du **Pico 2 W** depuis GitHub, **sans rebrancher la carte**.
-Conçu léger pour la faible RAM du Pico (streaming, aucun fichier entier en mémoire).
+Firmware MicroPython pour **Pico 2 W** : détection de sonnerie, notifications
+Pushover, ouverture de porte, **interface web de configuration** et
+**mise à jour du code depuis GitHub** (sans rebrancher la carte).
 
-## Principe
+## Workflow
 
-1. Le PC génère `manifest.json` : la liste des fichiers du firmware + leur SHA-256 + une `version`.
-2. Le Pico lit `manifest.json` via `raw.githubusercontent.com`.
-3. Il compare aux hashes stockés localement (`version.json`) et **ne télécharge que ce qui a changé**.
-4. Chaque fichier est streamé vers la flash en blocs de 512 o, hash vérifié à la volée, écrit en `*.new`.
-5. Une fois **tous** les fichiers vérifiés, swap atomique `*.new` → fichier final, puis `version.json` est mis à jour.
-6. Si une seule vérification échoue, **rien n'est appliqué** (pas de Pico à moitié à jour).
+```
+  Claude Code / PC                GitHub (branche main)              Pico 2 W
+ ┌────────────────┐   git push   ┌──────────────────────┐  bouton   ┌──────────┐
+ │ éditer source/ │ ───────────▶ │ source/*.py          │   web     │ rapatrie │
+ │ gen_manifest   │              │ source/manifest.json │ ────────▶ │ + reboot │
+ └────────────────┘              └──────────────────────┘           └──────────┘
+```
 
-Les secrets (Wi-Fi, Pushover) restent dans `config.json` **local** : ce fichier n'est jamais
-dans le manifest, donc jamais écrasé par l'OTA.
+1. On développe dans **`source/`** (ici, sur Claude Code).
+2. On régénère **`source/manifest.json`** avec une nouvelle `version`.
+3. On pousse sur **`main`** → c'est le firmware « officiel ».
+4. Sur la page web du Pico, le bouton **« Mettre à jour le firmware »** compare
+   la `version` distante à la version installée et **rapatrie uniquement les
+   fichiers modifiés**, puis redémarre.
+
+## Conçu léger pour le Pico 2 W
+
+- Téléchargement **en streaming** (blocs de 512 o) directement vers la flash :
+  aucun fichier entier en RAM → évite les `ENOMEM`.
+- SHA-256 vérifié **à la volée** ; on ne télécharge que les fichiers dont le
+  hash a changé.
+- Téléchargement **étagé** (`*.new`) puis swap : une coupure de courant pendant
+  la mise à jour laisse l'ancien firmware intact.
+- `gc.collect()` entre chaque fichier.
 
 ## Fichiers
 
 | Fichier | Où | Rôle |
 |---|---|---|
-| `ota.py` | Pico | Le moteur de mise à jour (streaming + SHA-256). |
-| `manifest.json` | Dépôt (racine) | Liste des fichiers + hashes + version. Généré sur le PC. |
-| `version.json` | Pico | État local : version installée + hash de chaque fichier. |
-| `tools/gen_manifest.py` | PC | Génère `manifest.json`. |
-| `config.json` | Pico uniquement | Secrets, jamais dans le manifest. |
+| `source/main.py` | Pico | Boucle principale. |
+| `source/web.py` | Pico | Interface web (config + actions + bouton update). |
+| `source/config_store.py` | Pico | Charge/sauve `config.json` (tous les paramètres). |
+| `source/ota.py` | Pico | Moteur OTA (streaming + SHA-256). |
+| `source/relay.py`, `interphone.py`, `pushover.py`, `wifi_manager.py` | Pico | Modules métier. |
+| `source/config.py` | Pico | Valeurs d'usine (jamais dans l'OTA). |
+| `source/manifest.json` | Dépôt | Liste fichiers + hashes + version. |
+| `config.json` | Pico uniquement | Config sauvegardée (secrets). `.gitignore`, jamais dans l'OTA. |
+| `version.json` | Pico uniquement | Version installée + hashes. Créé par l'OTA. |
+| `tools/gen_manifest.py` | PC | Génère `source/manifest.json`. |
 
-## Publier une mise à jour (workflow)
+## Publier une mise à jour
 
 ```bash
-# 1. modifier les modules (main.py, web.py, ...)
+# 1. éditer les modules dans source/
 # 2. régénérer le manifest avec une nouvelle version
-python3 tools/gen_manifest.py --version 0.2.0
+python3 tools/gen_manifest.py --version 1.1.0
 
-# 3. committer + pousser sur la branche que lit le Pico (ex. main)
-git add manifest.json *.py
-git commit -m "Firmware 0.2.0"
-git push
+# 3. committer + pousser sur main
+git add source/ && git commit -m "Firmware 1.1.0" && git push origin main
 ```
 
-Le Pico récupérera la mise à jour au prochain `check_and_update()`.
+Puis, sur la page web du Pico → **« Mettre à jour le firmware »**.
 
-## Intégration côté Pico (ex. dans `main.py`)
+## Configuration (page web)
 
-```python
-import ota, config_store
-cfg = config_store.load()
-res = ota.check_and_update(cfg["ota_repo"],            # ex. "mrsubtle8/aneth_interphone_connecte"
-                           cfg.get("ota_branch", "main"))
-if res["error"]:
-    print("OTA erreur:", res["error"])
-elif res["updated"]:
-    print("Mis à jour ->", res["version"], res["changed"])
-    import machine
-    machine.reset()        # redémarre sur le nouveau firmware
-else:
-    print("Déjà à jour:", res["version"])
-```
+Tout est éditable et **sauvegardé dans `config.json`** : Wi-Fi (nom + mot de
+passe), Pushover (clés, message, sonnerie, priorité, retry/expire), relais
+(durée d'impulsion, active-low), anti-double détection, dépôt/branche OTA, et
+le mot de passe admin. Après « Enregistrer », le Pico redémarre pour appliquer.
 
-À déclencher au boot et/ou via un bouton « Mettre à jour » dans l'interface web.
+Au **premier démarrage** (pas de `config.json`), les valeurs d'usine de
+`config.py` sont utilisées ; dès la première sauvegarde, `config.json` prend le
+relais et `config.py` n'est plus que le filet de secours.
 
-## Clés à ajouter dans `config.json` (sur le Pico)
+## ⚠️ Sécurité des secrets
 
-```json
-{
-  "ota_repo": "mrsubtle8/aneth_interphone_connecte",
-  "ota_branch": "main",
-  "ota_path": ""
-}
-```
-
-`ota_path` permet de ranger le firmware dans un sous-dossier du dépôt
-(ex. `"firmware/"`) ; laisser `""` si tout est à la racine.
-
-## Notes mémoire (Pico 2 W)
-
-- Lecture réseau → flash par blocs de **512 o** (`CHUNK`), jamais le fichier complet en RAM.
-- `gc.collect()` entre chaque fichier pour limiter la fragmentation (évite les `ENOMEM`).
-- Le manifest est petit, il est le seul élément chargé entièrement en mémoire.
-- Téléchargement étagé `*.new` → coupure de courant pendant l'OTA = ancien firmware intact.
+`source/config.py` contient actuellement le **vrai mot de passe Wi-Fi et les
+clés Pushover en clair**, et il est poussé sur GitHub. C'est exclu de l'OTA,
+mais l'exposition dans l'historique git reste un risque. Recommandé :
+- régénérer le token Pushover et changer le mot de passe Wi-Fi exposés ;
+- à terme, vider les secrets de `config.py` (placeholders) et ne garder les
+  vraies valeurs que dans `config.json` (local, gitignoré).

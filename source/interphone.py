@@ -1,8 +1,11 @@
 from machine import Pin
-from time import ticks_ms
-from config import DETECT_PIN, ANTI_DOUBLE_MS
+from time import ticks_ms, ticks_diff
+import config_store
 
-detect = Pin(DETECT_PIN, Pin.IN, Pin.PULL_UP)
+_cfg = config_store.load()
+ANTI_DOUBLE_MS = _cfg["anti_double_ms"]
+
+detect = Pin(_cfg["detect_pin"], Pin.IN, Pin.PULL_UP)
 
 previous_state = detect.value()
 last_detection = 0
@@ -19,7 +22,7 @@ def check():
     if previous_state == 1 and state == 0:
         now = ticks_ms()
 
-        if now - last_detection > ANTI_DOUBLE_MS:
+        if ticks_diff(now, last_detection) > ANTI_DOUBLE_MS:
             last_detection = now
             previous_state = state
             return True

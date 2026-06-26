@@ -5,6 +5,7 @@ import config_store
 import pushover
 import relay
 import interphone
+import ota
 
 SOUNDS = ["pushover","cosmic","bike","incoming","magic","siren","spacealarm","persistent","echo","updown","none"]
 
@@ -69,6 +70,11 @@ def page(ip):
     cfg = config_store.load()
     state = "SONNERIE ACTIVE" if interphone.is_active() else "OK"
 
+    try:
+        fw_version = ota._load_state().get("version", "0.0.0")
+    except Exception:
+        fw_version = "0.0.0"
+
     return """<html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -93,7 +99,9 @@ small{{color:#666}}
 <h2>Actions</h2>
 <p><a href="/test?password={pwd}"><button>Tester notification</button></a></p>
 <p><a href="/open?password={pwd}"><button>Ouvrir porte</button></a></p>
+<p><a href="/update?password={pwd}"><button>Mettre a jour le firmware</button></a></p>
 <p><a href="/restart?password={pwd}"><button>Redemarrer Pico</button></a></p>
+<p><small>Version installee : {fw_version}</small></p>
 </div>
 
 <div class="card">
@@ -144,6 +152,14 @@ small{{color:#666}}
 <label>Anti-double detection, ms</label>
 <input name="anti_double_ms" value="{anti_ms}">
 
+<h3>Mise a jour (OTA)</h3>
+<label>Depot GitHub</label>
+<input name="ota_repo" value="{ota_repo}">
+<label>Branche</label>
+<input name="ota_branch" value="{ota_branch}">
+<label>Sous-dossier dans le depot</label>
+<input name="ota_path" value="{ota_path}">
+
 <h3>Admin</h3>
 <label>Nouveau mot de passe admin</label>
 <input name="web_password" value="{pwd}">
@@ -157,6 +173,10 @@ small{{color:#666}}
 </html>""".format(
         state=state,
         ip=ip,
+        fw_version=html_escape(fw_version),
+        ota_repo=html_escape(cfg["ota_repo"]),
+        ota_branch=html_escape(cfg["ota_branch"]),
+        ota_path=html_escape(cfg["ota_path"]),
         pwd=html_escape(cfg["web_password"]),
         wifi_name=html_escape(cfg["wifi_name"]),
         wifi_password=html_escape(cfg["wifi_password"]),
@@ -209,6 +229,35 @@ def step(sock, ip):
             relay.pulse()
             send_response(conn, "<html><body>Porte ouverte</body></html>")
 
+        elif method == "GET" and path.startswith("/update?password=" + pwd):
+            gc.collect()
+            res = ota.check_and_update(
+                cfg["ota_repo"], cfg["ota_branch"], cfg["ota_path"]
+            )
+            if res["error"]:
+                send_response(
+                    conn,
+                    "<html><body>Erreur OTA : " + html_escape(res["error"]) +
+                    "<br><a href='/'>Retour</a></body></html>",
+                )
+            elif res["updated"]:
+                send_response(
+                    conn,
+                    "<html><body>Mis a jour vers " + html_escape(res["version"]) +
+                    " (" + html_escape(", ".join(res["changed"])) +
+                    "). Redemarrage...</body></html>",
+                )
+                conn.close()
+                conn = None
+                machine.reset()
+            else:
+                send_response(
+                    conn,
+                    "<html><body>Deja a jour (version " +
+                    html_escape(res["version"]) + ")."
+                    "<br><a href='/'>Retour</a></body></html>",
+                )
+
         elif method == "GET" and path.startswith("/restart?password=" + pwd):
             send_response(conn, "<html><body>Redemarrage...</body></html>")
             conn.close()
@@ -233,6 +282,9 @@ def step(sock, ip):
                 cfg["relay_pulse_ms"] = int(form.get("relay_pulse_ms", cfg["relay_pulse_ms"]))
                 cfg["anti_double_ms"] = int(form.get("anti_double_ms", cfg["anti_double_ms"]))
                 cfg["relay_active_low"] = form.get("relay_active_low", "false") == "true"
+                cfg["ota_repo"] = form.get("ota_repo", cfg["ota_repo"])
+                cfg["ota_branch"] = form.get("ota_branch", cfg["ota_branch"])
+                cfg["ota_path"] = form.get("ota_path", cfg["ota_path"])
                 cfg["web_password"] = form.get("web_password", cfg["web_password"])
 
                 config_store.save(cfg)

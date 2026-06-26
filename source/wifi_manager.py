@@ -1,17 +1,18 @@
 import network
 from time import sleep
 from machine import Pin
-from config import WIFI_NAME, WIFI_PASSWORD
+import config_store
 
 led = Pin("LED", Pin.OUT)
 
 def connect():
+    cfg = config_store.load()
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
 
     if not wlan.isconnected():
         print("Connexion Wi-Fi...")
-        wlan.connect(WIFI_NAME, WIFI_PASSWORD)
+        wlan.connect(cfg["wifi_name"], cfg["wifi_password"])
 
     while not wlan.isconnected():
         led.toggle()

@@ -1,8 +1,12 @@
 from machine import Pin
 from time import sleep
-from config import RELAY_PIN, RELAY_ACTIVE_LOW, RELAY_PULSE_MS
+import config_store
 
-relay = Pin(RELAY_PIN, Pin.OUT)
+_cfg = config_store.load()
+RELAY_ACTIVE_LOW = _cfg["relay_active_low"]
+RELAY_PULSE_MS = _cfg["relay_pulse_ms"]
+
+relay = Pin(_cfg["relay_pin"], Pin.OUT)
 
 def off():
     relay.value(1 if RELAY_ACTIVE_LOW else 0)

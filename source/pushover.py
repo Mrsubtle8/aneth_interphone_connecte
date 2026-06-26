@@ -1,13 +1,6 @@
 import urequests
 import gc
-from config import (
-    PUSHOVER_USER_KEY,
-    PUSHOVER_API_TOKEN,
-    PUSHOVER_PRIORITY,
-    PUSHOVER_RETRY,
-    PUSHOVER_EXPIRE,
-    PUSHOVER_SOUND,
-)
+import config_store
 
 def urlencode(text):
     text = str(text)
@@ -19,22 +12,28 @@ def urlencode(text):
     text = text.replace("ç", "c")
     return text
 
-def send(message):
+def send(message=None):
     gc.collect()
+    cfg = config_store.load()
+
+    if message is None:
+        message = cfg["message"]
+
+    priority = int(cfg["pushover_priority"])
 
     data = (
-        "token=" + PUSHOVER_API_TOKEN +
-        "&user=" + PUSHOVER_USER_KEY +
+        "token=" + cfg["pushover_api_token"] +
+        "&user=" + cfg["pushover_user_key"] +
         "&title=Interphone%20Pickles" +
         "&message=" + urlencode(message) +
-        "&priority=" + str(PUSHOVER_PRIORITY) +
-        "&sound=" + PUSHOVER_SOUND
+        "&priority=" + str(priority) +
+        "&sound=" + cfg["pushover_sound"]
     )
 
-    if PUSHOVER_PRIORITY == 2:
+    if priority == 2:
         data += (
-            "&retry=" + str(PUSHOVER_RETRY) +
-            "&expire=" + str(PUSHOVER_EXPIRE)
+            "&retry=" + str(cfg["pushover_retry"]) +
+            "&expire=" + str(cfg["pushover_expire"])
         )
 
     try:

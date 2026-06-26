@@ -1,7 +1,6 @@
 from time import sleep
 from machine import Pin
 
-from config import MESSAGE
 import wifi_manager
 import pushover
 import relay
@@ -32,7 +31,7 @@ while True:
 
     if interphone.check():
         print(">>> SONNERIE DETECTEE <<<")
-        pushover.send(MESSAGE)
+        pushover.send()
 
     led.value(1 if interphone.is_active() else 0)
 
