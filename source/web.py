@@ -29,6 +29,9 @@ def url_decode(s):
 def html_escape(s):
     return str(s).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace('"',"&quot;")
 
+def js_str(s):
+    return '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
 def parse_form(body):
     data = {}
     for part in body.split("&"):
@@ -39,7 +42,7 @@ def parse_form(body):
 
 def send_response(conn, body, status="200 OK"):
     conn.send("HTTP/1.1 {}\r\n".format(status))
-    conn.send("Content-Type: text/html\r\n")
+    conn.send("Content-Type: text/html; charset=utf-8\r\n")
     conn.send("Connection: close\r\n\r\n")
     conn.send(body)
 
@@ -55,7 +58,10 @@ def read_request(conn, first):
             length = int(line.split(":", 1)[1].strip())
 
     while len(body) < length:
-        body += conn.recv(512).decode()
+        chunk = conn.recv(512)
+        if not chunk:
+            break
+        body += chunk.decode()
 
     return body
 
@@ -66,6 +72,73 @@ def sound_options(current):
         html += '<option value="{}"{}>{}</option>'.format(s, sel, s)
     return html
 
+
+# JavaScript de la page : tout passe par fetch() + toast, aucune navigation.
+# __PWD__ est remplace par le mot de passe admin (comme l'ancien ?password=...).
+SCRIPT = """
+<script>
+var PWD = __PWD__;
+var tt;
+function toast(msg, ok){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = (ok === false) ? '#b00020' : '#222';
+  t.style.opacity = 1;
+  clearTimeout(tt);
+  tt = setTimeout(function(){ t.style.opacity = 0; }, 4000);
+}
+function action(path, label){
+  toast(label + '...');
+  fetch(path, {cache:'no-store'})
+    .then(function(r){ return r.text(); })
+    .then(function(t){ toast(t || 'OK'); })
+    .catch(function(){ toast('Erreur reseau', false); });
+}
+function doTest(){ action('/test?password=' + PWD, 'Envoi du test'); }
+function doOpen(){ action('/open?password=' + PWD, 'Ouverture'); }
+function doUpdate(){
+  toast('Recherche de mise a jour...');
+  fetch('/update?password=' + PWD, {cache:'no-store'})
+    .then(function(r){ return r.text(); })
+    .then(function(t){
+      toast(t);
+      if (t.indexOf('Mis a jour') === 0){ waitReboot(); }
+    })
+    .catch(function(){ waitReboot(); });
+}
+function doRestart(){
+  if (!confirm('Redemarrer le Pico ?')) return;
+  fetch('/restart?password=' + PWD, {cache:'no-store'}).catch(function(){});
+  waitReboot();
+}
+function waitReboot(){
+  toast('Redemarrage... reconnexion en cours');
+  var tries = 0;
+  var iv = setInterval(function(){
+    tries++;
+    fetch('/', {cache:'no-store'})
+      .then(function(){ clearInterval(iv); location.reload(); })
+      .catch(function(){ if (tries > 40){ clearInterval(iv); toast('Toujours hors ligne', false); } });
+  }, 1500);
+}
+function doSave(e){
+  e.preventDefault();
+  var f = document.getElementById('cfg');
+  var body = new URLSearchParams(new FormData(f)).toString();
+  toast('Enregistrement...');
+  fetch('/save', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: body
+  })
+    .then(function(r){ return r.text(); })
+    .then(function(t){ toast(t); })
+    .catch(function(){ toast('Erreur reseau', false); });
+  return false;
+}
+</script>
+"""
+
 def page(ip):
     cfg = config_store.load()
     state = "SONNERIE ACTIVE" if interphone.is_active() else "OK"
@@ -75,16 +148,19 @@ def page(ip):
     except Exception:
         fw_version = "0.0.0"
 
-    return """<html>
+    html = """<html>
 <head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Interphone Pickles</title>
 <style>
 body{{font-family:-apple-system,Arial;margin:20px;background:#f4f4f4;color:#111}}
 .card{{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px}}
 input,select,button{{width:100%;font-size:16px;padding:10px;margin:6px 0;box-sizing:border-box}}
-button{{background:#111;color:white;border:0;border-radius:10px}}
+button{{background:#111;color:white;border:0;border-radius:10px;cursor:pointer}}
+button.alt{{background:#555}}
 small{{color:#666}}
+#toast{{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:12px 18px;border-radius:10px;opacity:0;transition:opacity .3s;max-width:90%;text-align:center;z-index:99}}
 </style>
 </head>
 <body>
@@ -97,31 +173,31 @@ small{{color:#666}}
 
 <div class="card">
 <h2>Actions</h2>
-<p><a href="/test?password={pwd}"><button>Tester notification</button></a></p>
-<p><a href="/open?password={pwd}"><button>Ouvrir porte</button></a></p>
-<p><a href="/update?password={pwd}"><button>Mettre a jour le firmware</button></a></p>
-<p><a href="/restart?password={pwd}"><button>Redemarrer Pico</button></a></p>
+<button type="button" onclick="doTest()">Tester notification</button>
+<button type="button" onclick="doOpen()">Ouvrir porte</button>
+<button type="button" onclick="doUpdate()">Mettre a jour le firmware</button>
+<button type="button" class="alt" onclick="doRestart()">Redemarrer Pico</button>
 <p><small>Version installee : {fw_version}</small></p>
 </div>
 
 <div class="card">
 <h2>Configuration</h2>
-<form method="POST" action="/save">
+<form id="cfg" onsubmit="return doSave(event)">
 
-<label>Mot de passe admin actuel</label>
+<label>Mot de passe admin actuel (requis pour enregistrer)</label>
 <input name="admin_password" type="password">
 
 <h3>Wi-Fi</h3>
 <label>Nom Wi-Fi</label>
 <input name="wifi_name" value="{wifi_name}">
 <label>Mot de passe Wi-Fi</label>
-<input name="wifi_password" value="{wifi_password}">
+<input name="wifi_password" type="password" placeholder="(inchange)">
 
 <h3>Pushover</h3>
 <label>User Key</label>
-<input name="pushover_user_key" value="{user_key}">
+<input name="pushover_user_key" type="password" placeholder="(inchange)">
 <label>API Token</label>
-<input name="pushover_api_token" value="{api_token}">
+<input name="pushover_api_token" type="password" placeholder="(inchange)">
 <label>Message</label>
 <input name="message" value="{message}">
 
@@ -162,13 +238,17 @@ small{{color:#666}}
 
 <h3>Admin</h3>
 <label>Nouveau mot de passe admin</label>
-<input name="web_password" value="{pwd}">
+<input name="web_password" type="password" placeholder="(laisser vide = inchange)">
 
-<button>Enregistrer et redemarrer</button>
+<button>Enregistrer</button>
 </form>
+<small>Wi-Fi, broches, relais et anti-double s'appliquent au redemarrage. Le message et la sonnerie sont immediats.</small>
 </div>
 
 <small>Branchement final : COM violet vers 9, NO marron vers 6.</small>
+
+<div id="toast"></div>
+{script}
 </body>
 </html>""".format(
         state=state,
@@ -177,11 +257,7 @@ small{{color:#666}}
         ota_repo=html_escape(cfg["ota_repo"]),
         ota_branch=html_escape(cfg["ota_branch"]),
         ota_path=html_escape(cfg["ota_path"]),
-        pwd=html_escape(cfg["web_password"]),
         wifi_name=html_escape(cfg["wifi_name"]),
-        wifi_password=html_escape(cfg["wifi_password"]),
-        user_key=html_escape(cfg["pushover_user_key"]),
-        api_token=html_escape(cfg["pushover_api_token"]),
         message=html_escape(cfg["message"]),
         sound_options=sound_options(cfg["pushover_sound"]),
         p1="selected" if int(cfg["pushover_priority"]) == 1 else "",
@@ -191,8 +267,10 @@ small{{color:#666}}
         relay_ms=cfg["relay_pulse_ms"],
         anti_ms=cfg["anti_double_ms"],
         low_true="selected" if cfg["relay_active_low"] else "",
-        low_false="selected" if not cfg["relay_active_low"] else ""
+        low_false="selected" if not cfg["relay_active_low"] else "",
+        script=SCRIPT.replace("__PWD__", js_str(cfg["web_password"]))
     )
+    return html
 
 def start():
     addr = socket.getaddrinfo("0.0.0.0", 80)[0][-1]
@@ -207,6 +285,9 @@ def step(sock, ip):
     conn = None
     try:
         conn, addr = sock.accept()
+        # La socket acceptee herite du timeout 0.05s de la socket d'ecoute :
+        # trop court pour lire le corps d'un POST (arrive en 2e segment TCP).
+        conn.settimeout(2.0)
         first = conn.recv(1024).decode()
         first_line = first.split("\r\n")[0]
         method = first_line.split(" ")[0]
@@ -218,8 +299,11 @@ def step(sock, ip):
         if method == "GET" and path == "/":
             send_response(conn, page(ip))
 
+        elif method == "GET" and path == "/favicon.ico":
+            send_response(conn, "", "204 No Content")
+
         elif method == "GET" and path.startswith("/test?password=" + pwd):
-            send_response(conn, "<html><body>Test envoye</body></html>")
+            send_response(conn, "Notification de test envoyee")
             conn.close()
             conn = None
             gc.collect()
@@ -227,7 +311,7 @@ def step(sock, ip):
 
         elif method == "GET" and path.startswith("/open?password=" + pwd):
             relay.pulse()
-            send_response(conn, "<html><body>Porte ouverte</body></html>")
+            send_response(conn, "Porte ouverte")
 
         elif method == "GET" and path.startswith("/update?password=" + pwd):
             gc.collect()
@@ -235,32 +319,23 @@ def step(sock, ip):
                 cfg["ota_repo"], cfg["ota_branch"], cfg["ota_path"]
             )
             if res["error"]:
-                send_response(
-                    conn,
-                    "<html><body>Erreur OTA : " + html_escape(res["error"]) +
-                    "<br><a href='/'>Retour</a></body></html>",
-                )
+                send_response(conn, "Erreur OTA : " + res["error"])
             elif res["updated"]:
                 send_response(
                     conn,
-                    "<html><body>Mis a jour vers " + html_escape(res["version"]) +
-                    " (" + html_escape(", ".join(res["changed"])) +
-                    "). Redemarrage...</body></html>",
+                    "Mis a jour vers " + str(res["version"]) +
+                    " (" + ", ".join(res["changed"]) + ")"
                 )
                 conn.close()
                 conn = None
                 machine.reset()
             else:
-                send_response(
-                    conn,
-                    "<html><body>Deja a jour (version " +
-                    html_escape(res["version"]) + ")."
-                    "<br><a href='/'>Retour</a></body></html>",
-                )
+                send_response(conn, "Deja a jour (version " + str(res["version"]) + ")")
 
         elif method == "GET" and path.startswith("/restart?password=" + pwd):
-            send_response(conn, "<html><body>Redemarrage...</body></html>")
+            send_response(conn, "Redemarrage")
             conn.close()
+            conn = None
             machine.reset()
 
         elif method == "POST" and path == "/save":
@@ -268,12 +343,9 @@ def step(sock, ip):
             form = parse_form(body)
 
             if form.get("admin_password", "") != pwd:
-                send_response(conn, "<html><body>Mot de passe incorrect</body></html>", "403 Forbidden")
+                send_response(conn, "Mot de passe admin incorrect", "403 Forbidden")
             else:
                 cfg["wifi_name"] = form.get("wifi_name", cfg["wifi_name"])
-                cfg["wifi_password"] = form.get("wifi_password", cfg["wifi_password"])
-                cfg["pushover_user_key"] = form.get("pushover_user_key", cfg["pushover_user_key"])
-                cfg["pushover_api_token"] = form.get("pushover_api_token", cfg["pushover_api_token"])
                 cfg["message"] = form.get("message", cfg["message"])
                 cfg["pushover_sound"] = form.get("pushover_sound", cfg["pushover_sound"])
                 cfg["pushover_priority"] = int(form.get("pushover_priority", cfg["pushover_priority"]))
@@ -285,16 +357,23 @@ def step(sock, ip):
                 cfg["ota_repo"] = form.get("ota_repo", cfg["ota_repo"])
                 cfg["ota_branch"] = form.get("ota_branch", cfg["ota_branch"])
                 cfg["ota_path"] = form.get("ota_path", cfg["ota_path"])
-                cfg["web_password"] = form.get("web_password", cfg["web_password"])
+
+                # Champs sensibles : on ne remplace que si l'utilisateur a saisi
+                # quelque chose (sinon on garde la valeur existante).
+                if form.get("wifi_password"):
+                    cfg["wifi_password"] = form["wifi_password"]
+                if form.get("pushover_user_key"):
+                    cfg["pushover_user_key"] = form["pushover_user_key"]
+                if form.get("pushover_api_token"):
+                    cfg["pushover_api_token"] = form["pushover_api_token"]
+                if form.get("web_password"):
+                    cfg["web_password"] = form["web_password"]
 
                 config_store.save(cfg)
-
-                send_response(conn, "<html><body>Config sauvegardee. Redemarrage...</body></html>")
-                conn.close()
-                machine.reset()
+                send_response(conn, "Enregistre. Redemarrer pour appliquer Wi-Fi / broches / relais.")
 
         else:
-            send_response(conn, "<html><body>Refuse</body></html>", "403 Forbidden")
+            send_response(conn, "Refuse", "403 Forbidden")
 
     except OSError:
         pass
