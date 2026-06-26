@@ -2,7 +2,26 @@ import urequests
 import gc
 import config_store
 
-def urlencode(text):
+# Caracteres non encodes en percent-encoding (RFC 3986 unreserved).
+_SAFE = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.~"
+
+def quote(s):
+    """Percent-encode complet (pour la valeur du parametre url)."""
+    out = ""
+    for ch in str(s):
+        if ch in _SAFE:
+            out += ch
+        else:
+            o = ord(ch)
+            if o < 128:
+                out += "%%%02X" % o
+            else:
+                for b in ch.encode("utf-8"):
+                    out += "%%%02X" % b
+    return out
+
+def message_encode(text):
+    """Encodage simple du message (espaces + accents retires)."""
     text = str(text)
     text = text.replace(" ", "%20")
     text = text.replace("'", "%27")
@@ -12,7 +31,7 @@ def urlencode(text):
     text = text.replace("ç", "c")
     return text
 
-def send(message=None):
+def send(message=None, ip=None):
     gc.collect()
     cfg = config_store.load()
 
@@ -25,7 +44,7 @@ def send(message=None):
         "token=" + cfg["pushover_api_token"] +
         "&user=" + cfg["pushover_user_key"] +
         "&title=Interphone%20Pickles" +
-        "&message=" + urlencode(message) +
+        "&message=" + message_encode(message) +
         "&priority=" + str(priority) +
         "&sound=" + cfg["pushover_sound"]
     )
@@ -35,6 +54,17 @@ def send(message=None):
             "&retry=" + str(cfg["pushover_retry"]) +
             "&expire=" + str(cfg["pushover_expire"])
         )
+
+    # Lien "Ouvrir la porte" dans la notification (parametres Pushover
+    # url / url_title). Base = URL externe configuree, sinon l'IP locale.
+    if cfg.get("notify_open_url", True):
+        base = cfg.get("open_url_base", "")
+        if not base and ip:
+            base = "http://" + ip
+        if base:
+            open_url = base.rstrip("/") + "/open?password=" + cfg["web_password"]
+            data += "&url=" + quote(open_url)
+            data += "&url_title=" + quote("Ouvrir la porte")
 
     try:
         r = urequests.post(

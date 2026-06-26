@@ -1,13 +1,13 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "files": {
-    "config_store.py": "3de90df30cd2f7a27ef5962774424038587adee68a538c15fe61a9380d89988b",
+    "config_store.py": "1a013461a65d047af53f9d6013d3fc74bf3c67d34c6cf28ed3821afc946c376d",
     "interphone.py": "b741454e94736f4aa0c479d3433ca31915c04837985dd4db33cc8e97ff2bda1d",
-    "main.py": "ddabe2e961260a71a5caf89cd150cb9b2a8d2a24d338b8c0771fb1ed8b64cf30",
+    "main.py": "2d965b65243966272ec982fd04a5808bc62b4250ec7335e5bab5e48f5b1a1ada",
     "ota.py": "de9bc7c9da5944526235f25bf56e2c4f154cdb23b4a8a0dc1abe256fe292dff3",
-    "pushover.py": "6e2d30e8f212d218224ea8cc8939036ca7d2c79dabb6c598a04dd0933304895d",
+    "pushover.py": "db4faeff73c69ac1c7c9c5b85ea99da9a8d818b4c7f7016a0255c62499205a03",
     "relay.py": "49aae8109da6d47e7a6deaf1487588b7b0528b7e7a7b34e980cc6b83974aef6a",
-    "web.py": "899824d7cd5780d93c42062aa2f5daf5fead852c7f1a19808c0af4ead254f05c",
+    "web.py": "dcc9a1f6ff9d8206aa1fa774b2d2afc36d935fd7b1635a76853037dbe3ed18e5",
     "wifi_manager.py": "a5f9136da474a8724300370bf14e9696cc86dc46cfe433ba13a4576936c4b178"
   }
 }
