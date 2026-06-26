@@ -56,6 +56,15 @@ def _save_state(state):
         json.dump(state, f)
 
 
+def installed_version():
+    """Version du firmware reellement en cours (gravee dans fwversion.py)."""
+    try:
+        import fwversion
+        return fwversion.VERSION
+    except Exception:
+        return _load_state().get("version", "0.0.0")
+
+
 # --------------------------------------------------------------------------
 # HTTP(S) GET en streaming (sans urequests, pour controler la RAM)
 # --------------------------------------------------------------------------
@@ -255,7 +264,7 @@ def check_and_update(repo, branch="main", path_prefix="", force=False):
     state = _load_state()
     local_files = state.get("files", {})
 
-    if not force and manifest.get("version") == state.get("version"):
+    if not force and manifest.get("version") == installed_version():
         return result  # deja a jour
 
     base = _raw_base(repo, branch) + path_prefix

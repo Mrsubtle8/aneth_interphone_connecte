@@ -96,29 +96,51 @@ function action(path, label){
 }
 function doTest(){ action('/test?password=' + PWD, 'Envoi du test'); }
 function doOpen(){ action('/open?password=' + PWD, 'Ouverture'); }
+
+// --- Modale (resultat de mise a jour / redemarrage) ---
+function showModal(title, msg, color, busy){
+  document.getElementById('mtitle').textContent = title;
+  document.getElementById('mtitle').style.color = color || '#111';
+  document.getElementById('mmsg').textContent = msg;
+  document.getElementById('mspin').style.display = busy ? 'block' : 'none';
+  document.getElementById('mbtn').style.display = busy ? 'none' : 'block';
+  document.getElementById('ovl').style.display = 'flex';
+}
+function hideModal(){ document.getElementById('ovl').style.display = 'none'; }
+
 function doUpdate(){
-  toast('Recherche de mise a jour...');
+  showModal('Mise a jour', 'Recherche de mise a jour...', null, true);
   fetch('/update?password=' + PWD, {cache:'no-store'})
     .then(function(r){ return r.text(); })
     .then(function(t){
-      toast(t);
-      if (t.indexOf('Mis a jour') === 0){ waitReboot(); }
+      if (t.indexOf('Mis a jour') === 0){
+        showModal('Mise a jour reussie', t + ' - redemarrage...', '#0a7d28', true);
+        waitReboot();
+      } else if (t.indexOf('Erreur') === 0){
+        showModal('Echec de la mise a jour', t, '#b00020', false);
+      } else {
+        showModal('Aucune mise a jour', t, null, false);
+      }
     })
-    .catch(function(){ waitReboot(); });
+    .catch(function(){
+      // connexion coupee = reset apres mise a jour
+      showModal('Mise a jour', 'Redemarrage...', '#0a7d28', true);
+      waitReboot();
+    });
 }
 function doRestart(){
   if (!confirm('Redemarrer le Pico ?')) return;
+  showModal('Redemarrage', 'Reconnexion en cours...', null, true);
   fetch('/restart?password=' + PWD, {cache:'no-store'}).catch(function(){});
   waitReboot();
 }
 function waitReboot(){
-  toast('Redemarrage... reconnexion en cours');
   var tries = 0;
   var iv = setInterval(function(){
     tries++;
     fetch('/', {cache:'no-store'})
       .then(function(){ clearInterval(iv); location.reload(); })
-      .catch(function(){ if (tries > 40){ clearInterval(iv); toast('Toujours hors ligne', false); } });
+      .catch(function(){ if (tries > 40){ clearInterval(iv); showModal('Hors ligne', 'Le Pico ne repond pas.', '#b00020', false); } });
   }, 1500);
 }
 function doSave(e){
@@ -143,10 +165,7 @@ def page(ip):
     cfg = config_store.load()
     state = "SONNERIE ACTIVE" if interphone.is_active() else "OK"
 
-    try:
-        fw_version = ota._load_state().get("version", "0.0.0")
-    except Exception:
-        fw_version = "0.0.0"
+    fw_version = ota.installed_version()
 
     html = """<html>
 <head>
@@ -161,6 +180,12 @@ button{{background:#111;color:white;border:0;border-radius:10px;cursor:pointer}}
 button.alt{{background:#555}}
 small{{color:#666}}
 #toast{{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:12px 18px;border-radius:10px;opacity:0;transition:opacity .3s;max-width:90%;text-align:center;z-index:99}}
+#ovl{{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}}
+#modal{{background:#fff;border-radius:14px;padding:22px;max-width:360px;width:100%;text-align:center}}
+#modal h3{{margin:0 0 12px}}
+#modal .msg{{color:#333;margin-bottom:18px;word-break:break-word}}
+.spin{{width:34px;height:34px;border:4px solid #ddd;border-top-color:#111;border-radius:50%;margin:0 auto 14px;animation:sp 1s linear infinite}}
+@keyframes sp{{to{{transform:rotate(360deg)}}}}
 </style>
 </head>
 <body>
@@ -257,6 +282,12 @@ small{{color:#666}}
 <small>Branchement final : COM violet vers 9, NO marron vers 6.</small>
 
 <div id="toast"></div>
+<div id="ovl"><div id="modal">
+<div class="spin" id="mspin"></div>
+<h3 id="mtitle"></h3>
+<div class="msg" id="mmsg"></div>
+<button type="button" id="mbtn" onclick="hideModal()">Fermer</button>
+</div></div>
 {script}
 </body>
 </html>""".format(
