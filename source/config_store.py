@@ -36,6 +36,12 @@ DEFAULTS = {
     "relay_pulse_ms": config.RELAY_PULSE_MS,
     # Interphone
     "anti_double_ms": config.ANTI_DOUBLE_MS,
+    # Notification : bouton "Ouvrir la porte" dans la notif Pushover
+    "notify_open_url": True,
+    # Base de l'URL d'ouverture. Vide -> http://<ip locale> (marche en Wi-Fi
+    # local). Renseigner une URL externe pour ouvrir hors du reseau (port
+    # forwarding / DDNS / VPN), ex http://moncompte.duckdns.org:8080
+    "open_url_base": "",
     # OTA (mise a jour via GitHub)
     "ota_repo": "Mrsubtle8/aneth_interphone_connecte",
     "ota_branch": "main",

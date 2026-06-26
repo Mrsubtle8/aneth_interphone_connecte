@@ -228,6 +228,15 @@ small{{color:#666}}
 <label>Anti-double detection, ms</label>
 <input name="anti_double_ms" value="{anti_ms}">
 
+<h3>Notification</h3>
+<label>Bouton "Ouvrir la porte" dans la notification</label>
+<select name="notify_open_url">
+<option value="true" {nou_true}>oui</option>
+<option value="false" {nou_false}>non</option>
+</select>
+<label>URL externe (optionnel, sinon IP locale)</label>
+<input name="open_url_base" value="{open_url_base}" placeholder="http://moncompte.duckdns.org:8080">
+
 <h3>Mise a jour (OTA)</h3>
 <label>Depot GitHub</label>
 <input name="ota_repo" value="{ota_repo}">
@@ -257,6 +266,9 @@ small{{color:#666}}
         ota_repo=html_escape(cfg["ota_repo"]),
         ota_branch=html_escape(cfg["ota_branch"]),
         ota_path=html_escape(cfg["ota_path"]),
+        open_url_base=html_escape(cfg["open_url_base"]),
+        nou_true="selected" if cfg["notify_open_url"] else "",
+        nou_false="selected" if not cfg["notify_open_url"] else "",
         wifi_name=html_escape(cfg["wifi_name"]),
         message=html_escape(cfg["message"]),
         sound_options=sound_options(cfg["pushover_sound"]),
@@ -307,7 +319,7 @@ def step(sock, ip):
             conn.close()
             conn = None
             gc.collect()
-            pushover.send("Test notification interphone.")
+            pushover.send("Test notification interphone.", ip=ip)
 
         elif method == "GET" and path.startswith("/open?password=" + pwd):
             relay.pulse()
@@ -354,6 +366,8 @@ def step(sock, ip):
                 cfg["relay_pulse_ms"] = int(form.get("relay_pulse_ms", cfg["relay_pulse_ms"]))
                 cfg["anti_double_ms"] = int(form.get("anti_double_ms", cfg["anti_double_ms"]))
                 cfg["relay_active_low"] = form.get("relay_active_low", "false") == "true"
+                cfg["notify_open_url"] = form.get("notify_open_url", "true") == "true"
+                cfg["open_url_base"] = form.get("open_url_base", cfg["open_url_base"])
                 cfg["ota_repo"] = form.get("ota_repo", cfg["ota_repo"])
                 cfg["ota_branch"] = form.get("ota_branch", cfg["ota_branch"])
                 cfg["ota_path"] = form.get("ota_path", cfg["ota_path"])

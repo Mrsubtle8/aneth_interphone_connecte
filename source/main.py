@@ -31,7 +31,7 @@ while True:
 
     if interphone.check():
         print(">>> SONNERIE DETECTEE <<<")
-        pushover.send()
+        pushover.send(ip=ip)
 
     led.value(1 if interphone.is_active() else 0)
 
