@@ -40,11 +40,28 @@ def parse_form(body):
             data[url_decode(k)] = url_decode(v)
     return data
 
+def _write_all(conn, data):
+    # MicroPython: socket.send() peut n'envoyer qu'une partie du buffer pour
+    # une grosse page -> on boucle jusqu'a tout avoir envoye (sinon la page,
+    # et surtout le <script> en bas, est tronquee).
+    if isinstance(data, str):
+        data = data.encode()
+    view = memoryview(data)
+    total = len(data)
+    sent = 0
+    while sent < total:
+        n = conn.send(view[sent:])
+        if n:
+            sent += n
+
 def send_response(conn, body, status="200 OK"):
-    conn.send("HTTP/1.1 {}\r\n".format(status))
-    conn.send("Content-Type: text/html; charset=utf-8\r\n")
-    conn.send("Connection: close\r\n\r\n")
-    conn.send(body)
+    head = (
+        "HTTP/1.1 {}\r\n".format(status) +
+        "Content-Type: text/html; charset=utf-8\r\n" +
+        "Connection: close\r\n\r\n"
+    )
+    _write_all(conn, head)
+    _write_all(conn, body)
 
 def read_request(conn, first):
     headers = first.split("\r\n\r\n", 1)[0]
