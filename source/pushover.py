@@ -77,7 +77,9 @@ def send(message=None, ip=None):
         del r
         gc.collect()
         print("Pushover:", status)
+        return status == 200
 
     except Exception as e:
         gc.collect()
         print("Erreur Pushover:", e)
+        return False
