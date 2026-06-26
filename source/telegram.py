@@ -89,6 +89,116 @@ def _open_door(cfg, source):
     _send_text(cfg, "🔓 Porte ouverte")
 
 
+def _norm(text):
+    """Minuscule + retrait des accents, pour une reconnaissance tolerante."""
+    t = str(text).strip().lower()
+    for a, b in (("é", "e"), ("è", "e"), ("ê", "e"), ("à", "a"), ("â", "a"),
+                 ("ç", "c"), ("î", "i"), ("ô", "o"), ("û", "u")):
+        t = t.replace(a, b)
+    return t
+
+
+# Clavier persistant (boutons en bas du chat) : plus besoin de retenir les noms.
+_MENU_KEYBOARD = ('{"keyboard":[["🔓 Ouvrir"],'
+                  '["📊 Etat","🔔 Test"],'
+                  '["⬆️ Mise a jour","♻️ Redemarrer"]],'
+                  '"resize_keyboard":true,"is_persistent":true}')
+
+# Menu natif "/" de Telegram (autocompletion quand on tape "/").
+_COMMANDS_JSON = ('{"commands":['
+                  '{"command":"ouvrir","description":"Ouvrir la porte"},'
+                  '{"command":"etat","description":"Etat (version, IP, sonnerie)"},'
+                  '{"command":"test","description":"Notification de test"},'
+                  '{"command":"maj","description":"Mise a jour du firmware"},'
+                  '{"command":"redemarrer","description":"Redemarrer le Pico"},'
+                  '{"command":"aide","description":"Afficher le menu"}]}')
+
+_cmds_registered = False
+
+
+def _menu(cfg):
+    """Envoie le message d'intro + le clavier de boutons."""
+    global _cmds_registered
+    txt = ("Interphone Pickles\n\n"
+           "🔓 Ouvrir - ouvrir la porte\n"
+           "📊 Etat - version, IP, sonnerie\n"
+           "🔔 Test - notification de test\n"
+           "⬆️ Mise a jour - firmware (OTA)\n"
+           "♻️ Redemarrer - redemarrer le Pico\n\n"
+           "Utilise les boutons ci-dessous, ou tape la commande.")
+    params = ("chat_id=" + str(cfg["telegram_chat_id"]) +
+              "&text=" + _q(txt) +
+              "&reply_markup=" + _q(_MENU_KEYBOARD))
+    _request(cfg["telegram_bot_token"], "sendMessage", params)
+    if not _cmds_registered:
+        _request(cfg["telegram_bot_token"], "setMyCommands", "commands=" + _q(_COMMANDS_JSON))
+        _cmds_registered = True
+
+
+def _status(cfg):
+    import fwversion
+    ip = "?"
+    etat = "?"
+    try:
+        import network
+        wlan = network.WLAN(network.STA_IF)
+        ip = wlan.ifconfig()[0] if wlan.isconnected() else "deconnecte"
+    except Exception:
+        pass
+    try:
+        import interphone
+        etat = "sonnerie active" if interphone.is_active() else "au repos"
+    except Exception:
+        pass
+    _send_text(cfg, "Interphone Pickles\nVersion: %s\nIP: %s\nEtat: %s"
+               % (fwversion.VERSION, ip, etat))
+
+
+def _test(cfg):
+    import pushover
+    pushover.send("Test notification interphone.")
+    _send_text(cfg, "🔔 Notification de test envoyee")
+
+
+def _update(cfg):
+    import ota
+    _send_text(cfg, "Recherche de mise a jour...")
+    res = ota.check_and_update(cfg["ota_repo"], cfg.get("ota_branch", "main"),
+                               cfg.get("ota_path", ""))
+    if res["error"]:
+        _send_text(cfg, "Erreur MAJ : " + res["error"])
+    elif res["updated"]:
+        _send_text(cfg, "Mis a jour vers %s. Redemarrage..." % res["version"])
+        import machine
+        machine.reset()
+    else:
+        _send_text(cfg, "Deja a jour (version %s)" % res["version"])
+
+
+def _reboot(cfg):
+    _send_text(cfg, "♻️ Redemarrage...")
+    import machine
+    machine.reset()
+
+
+def _handle_text(cfg, text):
+    """Reconnait une commande (texte libre, slash, ou bouton) et l'execute."""
+    t = _norm(text)
+    if "ouvr" in t or "open" in t:
+        _open_door(cfg, "commande")
+    elif "etat" in t or "status" in t:
+        _status(cfg)
+    elif "test" in t:
+        _test(cfg)
+    elif "maj" in t or "update" in t or "mise a jour" in t:
+        _update(cfg)
+    elif "redemarr" in t or "reboot" in t:
+        _reboot(cfg)
+    else:
+        # Tout le reste (/start, /aide, ou message inconnu) -> on affiche le menu.
+        _menu(cfg)
+
+
 def poll():
     """Recupere les updates et traite les commandes/boutons autorises.
 
@@ -125,7 +235,8 @@ def poll():
                 chat_id = str(msg["from"]["id"])
                 cfg["telegram_chat_id"] = chat_id
                 config_store.save(cfg)
-                _send_text(cfg, "Appareil associe a ton compte. Envoie /ouvrir pour ouvrir la porte.")
+                _send_text(cfg, "Appareil associe a ton compte.")
+                _menu(cfg)
                 print("Telegram: associe au chat_id", chat_id)
                 return
         return
@@ -165,11 +276,7 @@ def poll():
                 text = msg.get("text", "")
                 if from_id != allowed:
                     continue
-                low = text.strip().lower()
-                if low in ("/ouvrir", "/open", "/ouvrir@", "ouvrir"):
-                    _open_door(cfg, "commande")
-                elif low in ("/start", "/aide", "/help"):
-                    _send_text(cfg, "Interphone Pickles. Envoie /ouvrir pour ouvrir la porte.")
+                _handle_text(cfg, text)
         except Exception as e:  # noqa: BLE001
             print("Telegram traitement:", e)
         gc.collect()
