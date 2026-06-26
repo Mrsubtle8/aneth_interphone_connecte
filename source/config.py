@@ -1,0 +1,21 @@
+WIFI_NAME = "domo"
+WIFI_PASSWORD = "VI270880"
+
+PUSHOVER_USER_KEY = "ufv7fwxoenjai36igusn9hxdvcawr1"
+PUSHOVER_API_TOKEN = "adt2r4vuvmm1p3ke6h8wuzqmn8zdw1"
+
+PUSHOVER_PRIORITY = 2
+PUSHOVER_RETRY = 30
+PUSHOVER_EXPIRE = 60
+PUSHOVER_SOUND = "cosmic"
+MESSAGE = "Quelqu'un sonne a la porte."
+
+WEB_PASSWORD = "pickles"
+
+DETECT_PIN = 16
+RELAY_PIN = 17
+
+RELAY_ACTIVE_LOW = False
+RELAY_PULSE_MS = 300
+ANTI_DOUBLE_MS = 3000
+
