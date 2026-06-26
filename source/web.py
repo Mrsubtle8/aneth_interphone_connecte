@@ -289,6 +289,7 @@ small{{color:#666}}
 <input name="telegram_bot_token" type="password" placeholder="(inchange)">
 <label>Chat ID autorise</label>
 <input name="telegram_chat_id" value="{telegram_chat_id}">
+<small>Laisser vide : le bot s'associe automatiquement au 1er message. Active, enregistre, puis envoie /start au bot.</small>
 
 <h3>Mise a jour (OTA)</h3>
 <label>Depot GitHub</label>
