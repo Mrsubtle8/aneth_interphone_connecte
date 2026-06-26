@@ -1,15 +1,15 @@
 {
-  "version": "1.4.0",
+  "version": "1.4.1",
   "files": {
     "config_store.py": "89534230b38acdb5d5b4b3b4fd26e9f3839491991b4adf67c99cac33a1dd7cdd",
-    "fwversion.py": "2507cc14fca514be6f2d1c309d55a0c10b83d119a9f7a05e3b4e9bbfb3eade1a",
+    "fwversion.py": "88e55987b561ada8e6d7fbe36bfc28c957d7b2d4101d65c5d7346f74f0f898cd",
     "interphone.py": "b741454e94736f4aa0c479d3433ca31915c04837985dd4db33cc8e97ff2bda1d",
     "main.py": "f4ffa2d80d4e611ea340c69aff4cf2d22486534dacaf763a0209f275ccecf89d",
     "ota.py": "a3330334a44dc9ec90d9a0423933e77e1c33fbda183225b30a840c23d0992a8a",
     "pushover.py": "db4faeff73c69ac1c7c9c5b85ea99da9a8d818b4c7f7016a0255c62499205a03",
     "relay.py": "49aae8109da6d47e7a6deaf1487588b7b0528b7e7a7b34e980cc6b83974aef6a",
-    "telegram.py": "770f64e2fa08e63675f75e1ee4a993cd2bbf8c4437bd58018cf55330cd464b00",
-    "web.py": "f5782868067b2218718dcf4501be586e6533a850f93adc949d888603aaa1bdc9",
+    "telegram.py": "c6597ff7e23f6e0ca15a67595dc3b79bacc5c034cb4421566f6ead9df122150d",
+    "web.py": "6cfa316cbef9c40358dda331a529951697aeb75e84895886889faf1bdb90bb07",
     "wifi_manager.py": "a5f9136da474a8724300370bf14e9696cc86dc46cfe433ba13a4576936c4b178"
   }
 }

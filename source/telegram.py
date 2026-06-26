@@ -97,8 +97,7 @@ def poll():
     global _last_poll, _offset
 
     cfg = config_store.load()
-    if not cfg.get("telegram_enabled") or not cfg.get("telegram_bot_token") \
-            or not cfg.get("telegram_chat_id"):
+    if not cfg.get("telegram_enabled") or not cfg.get("telegram_bot_token"):
         return
 
     now = ticks_ms()
@@ -107,10 +106,32 @@ def poll():
     _last_poll = now
 
     token = cfg["telegram_bot_token"]
-    allowed = str(cfg["telegram_chat_id"])
+    allowed = str(cfg.get("telegram_chat_id", ""))
 
-    # Au tout premier poll : on avance l'offset au-dela du backlog pour ne pas
-    # rejouer une commande recue pendant que le Pico etait eteint.
+    # Mode association : pas encore de chat_id -> le bot apprend le tien au
+    # premier message recu (on lit le backlog pour capter un message deja
+    # envoye). Premier message gagne, puis c'est verrouille.
+    if not allowed:
+        if _offset is None:
+            _offset = 0
+        updates = _request(token, "getUpdates",
+                           'offset=%d&timeout=0&allowed_updates=%s' % (_offset, _q('["message"]')))
+        if not updates:
+            return
+        for up in updates:
+            _offset = up["update_id"] + 1
+            msg = up.get("message")
+            if msg and msg.get("from", {}).get("id") is not None:
+                chat_id = str(msg["from"]["id"])
+                cfg["telegram_chat_id"] = chat_id
+                config_store.save(cfg)
+                _send_text(cfg, "Appareil associe a ton compte. Envoie /ouvrir pour ouvrir la porte.")
+                print("Telegram: associe au chat_id", chat_id)
+                return
+        return
+
+    # Au tout premier poll (chat_id deja connu) : on avance l'offset au-dela du
+    # backlog pour ne pas rejouer une commande recue pendant que le Pico etait eteint.
     if _offset is None:
         updates = _request(token, "getUpdates", "offset=-1&timeout=0")
         if updates:
