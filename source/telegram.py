@@ -142,11 +142,13 @@ def _menu(cfg):
 def _status(cfg):
     import fwversion
     ip = "?"
+    mac = "?"
     etat = "?"
     try:
         import network
         wlan = network.WLAN(network.STA_IF)
         ip = wlan.ifconfig()[0] if wlan.isconnected() else "deconnecte"
+        mac = ":".join("%02X" % b for b in wlan.config("mac"))
     except Exception:
         pass
     try:
@@ -154,8 +156,8 @@ def _status(cfg):
         etat = "sonnerie active" if interphone.is_active() else "au repos"
     except Exception:
         pass
-    _send_text(cfg, "Interphone Pickles\nVersion: %s\nIP: %s\nEtat: %s"
-               % (fwversion.VERSION, ip, etat))
+    _send_text(cfg, "Interphone Pickles\nVersion: %s\nIP: %s\nMAC: %s\nEtat: %s"
+               % (fwversion.VERSION, ip, mac, etat))
 
 
 def _test(cfg):

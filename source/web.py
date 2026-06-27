@@ -185,6 +185,12 @@ def page(ip):
 
     fw_version = ota.installed_version()
 
+    try:
+        import network
+        mac = ":".join("%02X" % b for b in network.WLAN(network.STA_IF).config("mac"))
+    except Exception:
+        mac = "?"
+
     html = """<html>
 <head>
 <meta charset="utf-8">
@@ -212,6 +218,7 @@ small{{color:#666}}
 <div class="card">
 <p><b>Etat :</b> {state}</p>
 <p><b>IP :</b> {ip}</p>
+<p><b>MAC :</b> {mac}</p>
 </div>
 
 <div class="card">
@@ -328,6 +335,7 @@ small{{color:#666}}
 </html>""".format(
         state=state,
         ip=ip,
+        mac=html_escape(mac),
         fw_version=html_escape(fw_version),
         history=html_escape(history.text(15)),
         ota_repo=html_escape(cfg["ota_repo"]),
