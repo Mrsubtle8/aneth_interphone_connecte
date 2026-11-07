@@ -1,16 +1,19 @@
 {
-  "version": "1.6.1",
+  "version": "1.7.0",
   "files": {
-    "config_store.py": "89534230b38acdb5d5b4b3b4fd26e9f3839491991b4adf67c99cac33a1dd7cdd",
-    "fwversion.py": "bb61e831cc7888af4f0906edcd2ef4bf1cb374082c5435dad3b7c15315ea3b64",
-    "history.py": "e919b09c3f1faa87bb65429648bae840472fe40af304f54039d83f922a5bb639",
+    "config_store.py": "f3c2c573ebc6c5c20a1de79e78efd1e5374c184c2382d8d74043a028f34689de",
+    "fwversion.py": "fc3770263c2f7e3e43bcb19fe53b983aa50c608bd05d0a2282656b50e39f3f20",
+    "health.py": "7f1e204926ca585489b00327c9c7c7cf91e8fcfe77267cb63ecbf5e5d41f7163",
+    "history.py": "20acb0bedd7f9e409d1846477465ea71b5dbd23e1b36d6c074c2b4570765b9cd",
     "interphone.py": "b741454e94736f4aa0c479d3433ca31915c04837985dd4db33cc8e97ff2bda1d",
-    "main.py": "e40e3e54f25bccbf066837fee46eccbbb314e94f136ac93ce96d24f37061e050",
-    "ota.py": "a3330334a44dc9ec90d9a0423933e77e1c33fbda183225b30a840c23d0992a8a",
-    "pushover.py": "3d7072cc342582161362b1bb9c1a35f3d10678dc731d12939f5369dd3e9e327e",
+    "main.py": "ec52207ffd48b48fd510cd154da70ca502a74c6bac90e24655e29e01a60217b2",
+    "net.py": "84b4e544078afacfc12b213205a03aeccbe31a203e584c504b277269c0b5aeb2",
+    "ota.py": "6d3e4cbef5d0465ccb9b397ed5c0c066f9167e5eebb6dac3306f4ac9a02ac216",
+    "pushover.py": "76330601adf2ba0d89d271b53c73adfa31551ad149fd84ad5a72ff55cb18bb24",
     "relay.py": "49aae8109da6d47e7a6deaf1487588b7b0528b7e7a7b34e980cc6b83974aef6a",
-    "telegram.py": "36409896f1ce406e4bea4b3c8170556392fa4932ee6bd657325c544a2f8966f0",
-    "web.py": "c48de4d9518b272b1e39f075976063d1284cace2e9e7998a2a0da78b30a895b5",
-    "wifi_manager.py": "998e214389fac0d55ac46214956baf6f02b6319e4d4386f31e7571d1dabb0c74"
+    "telegram.py": "6d4b432d958057e510346e528f7ef40c2b7d71f441dd3418b4f52c3e72d222b1",
+    "watchdog.py": "33f781051654ce200682a8c6c3ab144bd3b54ce32edde23fcbd8a37c4a4fdcb7",
+    "web.py": "47cee4cb9c9b22280b6855867f2b57d6a6cbdb8a22159e8ac19f225a15089366",
+    "wifi_manager.py": "6af17da0096512ab0a6070c19b3c652df50c7798a147c1fdc323bab43d3e5cd4"
   }
 }

@@ -78,3 +78,23 @@ mais l'exposition dans l'historique git reste un risque. Recommandé :
 - régénérer le token Pushover et changer le mot de passe Wi-Fi exposés ;
 - à terme, vider les secrets de `config.py` (placeholders) et ne garder les
   vraies valeurs que dans `config.json` (local, gitignoré).
+
+## Fiabilité (depuis la 1.7.0)
+
+Objectif : ne plus jamais avoir à débrancher le Pico.
+
+- **Watchdog matériel** : si le programme se fige plus de ~8-16 s, le Pico redémarre seul.
+- **Timeout de 4 s** sur toutes les requêtes (Telegram, Pushover) : plus de blocage infini.
+- **Surveillance réseau** : plus aucune réponse pendant 5 min → relance du Wi-Fi ; 10 min → redémarrage.
+  Pendant une vraie panne internet, le délai double à chaque fois (10, 20, 40, 80 min, puis 2 h max).
+- **Redémarrage préventif chaque nuit** à 4 h (heure de Paris, réglable dans la page, `-1` = jamais).
+- **Erreur imprévue** → notée dans `crash.log` ; si elle se répète, redémarrage propre.
+- **Message Telegram silencieux « en ligne »** après chaque redémarrage imprévu, avec la cause
+  (sauf la maintenance de nuit). La cause est aussi visible sur la page web et dans 📊 État.
+- **Surveillance externe optionnelle** : une URL healthchecks.io (gratuit) dans la page → tu es
+  alerté si le Pico se tait.
+
+### Travailler en USB (Thonny) avec le watchdog
+Un **Ctrl-C** (bouton Stop de Thonny) passe le Pico en **mode maintenance** : le watchdog reste
+nourri, tu peux copier des fichiers sans redémarrage intempestif. Pour tout couper, mets
+« Watchdog » sur `non` dans la page, enregistre, puis redémarre.

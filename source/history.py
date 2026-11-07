@@ -61,11 +61,27 @@ def _paris_offset(tm):
     return 1 if (d > ls or (d == ls and hh >= 1)) else 2
 
 
+def _valid(epoch):
+    # Horloge reglee par NTP ? (independant de l'epoque 1970/2000 du firmware)
+    return time.localtime(epoch)[0] >= 2024
+
+
+def paris_now():
+    """Heure de Paris (tuple localtime), ou None si l'horloge n'est pas reglee."""
+    t = time.time()
+    if not _valid(t):
+        return None
+    return time.localtime(t + _paris_offset(time.localtime(t)) * 3600)
+
+
 def fmt_time(epoch):
     tm = time.localtime(epoch)               # UTC
     off = _paris_offset(tm)
     tm = time.localtime(epoch + off * 3600)  # Paris
     return "%02d/%02d %02d:%02d" % (tm[2], tm[1], tm[3], tm[4])
+
+
+_LABELS = {"sonnerie": "Sonnerie", "ouverture": "Ouverture", "demarrage": "Redemarrage"}
 
 
 def text(n=15):
@@ -75,9 +91,8 @@ def text(n=15):
         return "Aucun evenement enregistre."
     lines = []
     for e in evs:
-        label = "Sonnerie" if e.get("k") == "sonnerie" else "Ouverture"
+        label = _LABELS.get(e.get("k"), e.get("k", "?"))
         extra = " (" + e["i"] + ")" if e.get("i") else ""
-        # Si l'horloge n'a pas ete synchronisee (annee < 2023), on le signale.
-        when = fmt_time(e["t"]) if e["t"] > 730000000 else "??/?? --:--"
+        when = fmt_time(e["t"]) if _valid(e["t"]) else "??/?? --:--"
         lines.append(when + "  " + label + extra)
     return "\n".join(lines)

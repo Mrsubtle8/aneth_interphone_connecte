@@ -1,6 +1,6 @@
 import socket
 import gc
-import machine
+import watchdog
 import config_store
 import pushover
 import relay
@@ -219,6 +219,7 @@ small{{color:#666}}
 <p><b>Etat :</b> {state}</p>
 <p><b>IP :</b> {ip}</p>
 <p><b>MAC :</b> {mac}</p>
+<p><b>Dernier redemarrage :</b> {boot_reason}</p>
 </div>
 
 <div class="card">
@@ -304,6 +305,17 @@ small{{color:#666}}
 <input name="telegram_chat_id" value="{telegram_chat_id}">
 <small>Laisser vide : le bot s'associe automatiquement au 1er message. Active, enregistre, puis envoie /start au bot.</small>
 
+<h3>Fiabilite</h3>
+<label>Watchdog (redemarrage auto si blocage)</label>
+<select name="watchdog_enabled">
+<option value="true" {wd_true}>oui</option>
+<option value="false" {wd_false}>non</option>
+</select>
+<label>Redemarrage preventif quotidien (heure de Paris, -1 = jamais)</label>
+<input name="reboot_hour" value="{reboot_hour}">
+<label>URL de surveillance externe (optionnel, ex : healthchecks.io)</label>
+<input name="heartbeat_url" value="{heartbeat_url}" placeholder="https://hc-ping.com/...">
+
 <h3>Mise a jour (OTA)</h3>
 <label>Depot GitHub</label>
 <input name="ota_repo" value="{ota_repo}">
@@ -338,6 +350,11 @@ small{{color:#666}}
         mac=html_escape(mac),
         fw_version=html_escape(fw_version),
         history=html_escape(history.text(15)),
+        boot_reason=html_escape(watchdog.last_reason),
+        wd_true="selected" if cfg["watchdog_enabled"] else "",
+        wd_false="selected" if not cfg["watchdog_enabled"] else "",
+        reboot_hour=html_escape(cfg["reboot_hour"]),
+        heartbeat_url=html_escape(cfg["heartbeat_url"]),
         ota_repo=html_escape(cfg["ota_repo"]),
         ota_branch=html_escape(cfg["ota_branch"]),
         ota_path=html_escape(cfg["ota_path"]),
@@ -419,7 +436,7 @@ def step(sock, ip):
                 )
                 conn.close()
                 conn = None
-                machine.reset()
+                watchdog.reboot("mise a jour vers %s (page web)" % res["version"])
             else:
                 send_response(conn, "Deja a jour (version " + str(res["version"]) + ")")
 
@@ -427,7 +444,7 @@ def step(sock, ip):
             send_response(conn, "Redemarrage")
             conn.close()
             conn = None
-            machine.reset()
+            watchdog.reboot("redemarrage demande (page web)")
 
         elif method == "POST" and path == "/save":
             body = read_request(conn, first)
@@ -449,6 +466,12 @@ def step(sock, ip):
                 cfg["open_url_base"] = form.get("open_url_base", cfg["open_url_base"])
                 cfg["telegram_enabled"] = form.get("telegram_enabled", "false") == "true"
                 cfg["telegram_chat_id"] = form.get("telegram_chat_id", cfg["telegram_chat_id"])
+                cfg["watchdog_enabled"] = form.get("watchdog_enabled", "true") == "true"
+                try:
+                    cfg["reboot_hour"] = int(form.get("reboot_hour", cfg["reboot_hour"]))
+                except ValueError:
+                    pass
+                cfg["heartbeat_url"] = form.get("heartbeat_url", cfg["heartbeat_url"]).strip()
                 cfg["ota_repo"] = form.get("ota_repo", cfg["ota_repo"])
                 cfg["ota_branch"] = form.get("ota_branch", cfg["ota_branch"])
                 cfg["ota_path"] = form.get("ota_path", cfg["ota_path"])

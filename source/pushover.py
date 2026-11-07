@@ -1,6 +1,6 @@
-import urequests
 import gc
 import config_store
+import net
 
 # Caracteres non encodes en percent-encoding (RFC 3986 unreserved).
 _SAFE = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.~"
@@ -67,7 +67,7 @@ def send(message=None, ip=None):
             data += "&url_title=" + quote("Ouvrir la porte")
 
     try:
-        r = urequests.post(
+        r = net.post(
             "https://api.pushover.net/1/messages.json",
             data=data,
             headers={"Content-Type": "application/x-www-form-urlencoded"}
