@@ -8,13 +8,14 @@
 # - poll()       : recupere les updates (commande /ouvrir ou bouton) et ouvre
 #                  la porte si l'expediteur est autorise. Throttle interne.
 
-import urequests
 import gc
 from time import ticks_ms, ticks_diff
 
 import config_store
 import relay
 import history
+import net
+import watchdog
 
 API = "https://api.telegram.org/bot"
 
@@ -26,14 +27,16 @@ _offset = None  # None = pas encore initialise (on saute le backlog au 1er poll)
 
 
 def _request(token, method, params):
-    """Appel API Telegram. Renvoie le dict 'result' ou None en cas d'echec."""
-    gc.collect()
+    """Appel API Telegram. Renvoie le dict 'result' ou None en cas d'echec.
+
+    Passe par net.get : timeout, watchdog et suivi de sante du reseau.
+    """
     url = API + token + "/" + method
     if params:
         url += "?" + params
     r = None
     try:
-        r = urequests.get(url)
+        r = net.get(url)
         data = r.json()
         return data.get("result") if data.get("ok") else None
     except Exception as e:  # noqa: BLE001
@@ -41,7 +44,10 @@ def _request(token, method, params):
         return None
     finally:
         if r:
-            r.close()
+            try:
+                r.close()
+            except Exception:  # noqa: BLE001
+                pass
         gc.collect()
 
 
@@ -79,9 +85,20 @@ def notify(text):
     return _request(cfg["telegram_bot_token"], "sendMessage", params) is not None
 
 
-def _send_text(cfg, text):
+def _send_text(cfg, text, silent=False):
     params = "chat_id=" + str(cfg["telegram_chat_id"]) + "&text=" + _q(text)
-    _request(cfg["telegram_bot_token"], "sendMessage", params)
+    if silent:
+        params += "&disable_notification=true"
+    return _request(cfg["telegram_bot_token"], "sendMessage", params) is not None
+
+
+def send(text, silent=True):
+    """Message simple sans bouton, silencieux par defaut (ex : 'en ligne')."""
+    cfg = config_store.load()
+    if not cfg.get("telegram_enabled") or not cfg.get("telegram_bot_token") \
+            or not cfg.get("telegram_chat_id"):
+        return False
+    return _send_text(cfg, text, silent)
 
 
 def _open_door(cfg, source):
@@ -142,11 +159,13 @@ def _menu(cfg):
 def _status(cfg):
     import fwversion
     ip = "?"
+    mac = "?"
     etat = "?"
     try:
         import network
         wlan = network.WLAN(network.STA_IF)
         ip = wlan.ifconfig()[0] if wlan.isconnected() else "deconnecte"
+        mac = ":".join("%02X" % b for b in wlan.config("mac"))
     except Exception:
         pass
     try:
@@ -154,8 +173,15 @@ def _status(cfg):
         etat = "sonnerie active" if interphone.is_active() else "au repos"
     except Exception:
         pass
-    _send_text(cfg, "Interphone Pickles\nVersion: %s\nIP: %s\nEtat: %s"
-               % (fwversion.VERSION, ip, etat))
+    import health
+    gc.collect()
+    up = watchdog.uptime_s()
+    _send_text(cfg, "Interphone Pickles\nVersion: %s\nIP: %s\nMAC: %s\nEtat: %s\n"
+               "Reseau: %s\nMemoire libre: %d Ko\nEn marche depuis: %dh%02d\n"
+               "Dernier redemarrage: %s\nWatchdog: %s"
+               % (fwversion.VERSION, ip, mac, etat, health.status(),
+                  gc.mem_free() // 1024, up // 3600, (up // 60) % 60,
+                  watchdog.last_reason, "actif" if watchdog.active() else "inactif"))
 
 
 def _test(cfg):
@@ -173,16 +199,14 @@ def _update(cfg):
         _send_text(cfg, "Erreur MAJ : " + res["error"])
     elif res["updated"]:
         _send_text(cfg, "Mis a jour vers %s. Redemarrage..." % res["version"])
-        import machine
-        machine.reset()
+        watchdog.reboot("mise a jour vers %s (Telegram)" % res["version"])
     else:
         _send_text(cfg, "Deja a jour (version %s)" % res["version"])
 
 
 def _reboot(cfg):
     _send_text(cfg, "♻️ Redemarrage...")
-    import machine
-    machine.reset()
+    watchdog.reboot("redemarrage demande (Telegram)")
 
 
 def _handle_text(cfg, text):
@@ -212,14 +236,16 @@ def poll():
     """
     global _last_poll, _offset
 
-    cfg = config_store.load()
-    if not cfg.get("telegram_enabled") or not cfg.get("telegram_bot_token"):
-        return
-
+    # Throttle AVANT de lire la config : poll() est appele ~50 fois/s par la
+    # boucle, inutile de relire config.json a chaque fois.
     now = ticks_ms()
     if ticks_diff(now, _last_poll) < POLL_INTERVAL_MS:
         return
     _last_poll = now
+
+    cfg = config_store.load()
+    if not cfg.get("telegram_enabled") or not cfg.get("telegram_bot_token"):
+        return
 
     token = cfg["telegram_bot_token"]
     allowed = str(cfg.get("telegram_chat_id", ""))

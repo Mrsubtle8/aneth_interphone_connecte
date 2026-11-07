@@ -46,6 +46,10 @@ DEFAULTS = {
     "telegram_enabled": False,
     "telegram_bot_token": "",
     "telegram_chat_id": "",
+    # Fiabilite
+    "watchdog_enabled": True,   # redemarrage auto si le programme se bloque
+    "reboot_hour": 4,           # redemarrage preventif quotidien (heure de Paris, -1 = jamais)
+    "heartbeat_url": "",        # ping de surveillance externe (ex : healthchecks.io)
     # OTA (mise a jour via GitHub)
     "ota_repo": "Mrsubtle8/aneth_interphone_connecte",
     "ota_branch": "main",

@@ -22,6 +22,8 @@ import gc
 import json
 import socket
 
+import watchdog
+
 try:
     import ssl  # MicroPython
 except ImportError:
@@ -39,7 +41,9 @@ CHUNK = 512
 # Suffixe des fichiers telecharges avant le swap final.
 TMP_SUFFIX = ".new"
 # Timeout reseau (s) : empeche un blocage infini si une connexion TLS se fige.
-NET_TIMEOUT = 12
+# Reste sous le delai du watchdog (~8 s minimum) : un blocage reseau donne une
+# erreur propre plutot qu'un redemarrage.
+NET_TIMEOUT = 5
 
 
 # --------------------------------------------------------------------------
@@ -80,13 +84,17 @@ def _open_url(url):
     path = "/" + path
     port = 443 if proto == "https" else 80
 
+    watchdog.feed()
     addr = socket.getaddrinfo(host, port)[0][-1]
+    watchdog.feed()
     s = socket.socket()
     # Timeout obligatoire : sans lui, un TLS qui se fige bloque a l'infini.
     s.settimeout(NET_TIMEOUT)
     s.connect(addr)
+    watchdog.feed()
     if proto == "https":
         s = ssl.wrap_socket(s, server_hostname=host)
+    watchdog.feed()
 
     req = (
         "GET %s HTTP/1.1\r\n"
@@ -154,6 +162,7 @@ def _stream_to_file(url, path):
 def _read_length(s, f, h, length):
     remaining = length if length is not None else -1
     while remaining != 0:
+        watchdog.feed()
         want = CHUNK if remaining < 0 else min(CHUNK, remaining)
         block = s.read(want)
         if not block:
@@ -174,6 +183,7 @@ def _read_chunked(s, f, h):
             break
         got = 0
         while got < size:
+            watchdog.feed()
             block = s.read(min(CHUNK, size - got))
             if not block:
                 break
@@ -189,12 +199,16 @@ def _follow_location(url):
     host, _, path = host_path.partition("/")
     path = "/" + path
     port = 443 if proto == "https" else 80
+    watchdog.feed()
     addr = socket.getaddrinfo(host, port)[0][-1]
+    watchdog.feed()
     s = socket.socket()
     s.settimeout(NET_TIMEOUT)
     s.connect(addr)
+    watchdog.feed()
     if proto == "https":
         s = ssl.wrap_socket(s, server_hostname=host)
+    watchdog.feed()
     s.write(
         ("GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: pico-ota\r\n"
          "Connection: close\r\n\r\n" % (path, host)).encode()
@@ -237,6 +251,7 @@ def _fetch_manifest(repo, branch, path_prefix):
             raise OSError("Manifest HTTP %d" % status)
         body = b""
         while True:
+            watchdog.feed()
             block = s.read(CHUNK)
             if not block:
                 break
